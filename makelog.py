@@ -136,8 +136,9 @@ def getopts(argv):
 #TODO make sure that this fails better in the face of poor input
 if __name__ == "__main__":
     myargs = getopts(argv)
-    headerFile = "header.md" if('-h' not in myargs) else myargs[-h]
-    footerFile = "footer.md" if('-f' not in myargs) else myargs[-f]
-    postsFile = "wir.md" if('-p' not in myargs) else myargs[-p]
-    postTemplate = "singlePostTemplate.txt" if('-t' not in myargs) else myargs[-t]
+    print(myargs)
+    headerFile = "header.md" if('-h' not in myargs) else myargs['-h']
+    footerFile = "footer.md" if('-f' not in myargs) else myargs['-f']
+    postsFile = "wir.md" if('-p' not in myargs) else myargs['-p']
+    postTemplate = "singlePostTemplate.txt" if('-t' not in myargs) else myargs['-t']
     write_reading_log(headerFile,footerFile,postsFile,postTemplate)
