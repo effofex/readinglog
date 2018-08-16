@@ -8,6 +8,7 @@ from sys import argv
 from bs4 import BeautifulSoup
 from string import Template
 import re
+import time
 
 #adapted from https://stackoverflow.com/questions/250357/truncate-a-string-without-ending-in-the-middle-of-a-word
 def smart_truncate(content, length=100, suffix='…'):
@@ -28,6 +29,7 @@ def get_url_aggressively(url,retries):
         response1 = requests.get(url)
         if(response1.status_code == requests.codes.ok):
             return(response1)
+        time.sleep(0.1)
         tries = tries + 1
         
 def get_parsed_post(url):
@@ -100,12 +102,13 @@ def write_header(headerFile,outFile):
 
 def write_posts(postsFile,postTemplate,outFile):
         postNum=0
-        with open(postsFile) as f:   
+        with open(postsFile,encoding="utf-8") as f:  
             for line in f:
                 l = line.strip()
                 if(line_is_section(l)):
                     write_section(l,outFile)
                 elif(line_is_url(l)):
+                    print(l)
                     write_post_info(l,postTemplate,postNum,outFile)
                     postNum=postNum+1
                     
