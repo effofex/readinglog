@@ -1,3 +1,6 @@
+from jinja2 import Template  # Mapping post info into a readinglog
+import os.path               # File manipulation
+
 #TODO thumbnail size
 #TODO clickable images
 
@@ -6,12 +9,12 @@ import gzip
 import requests
 from sys import argv
 from bs4 import BeautifulSoup
-from string import Template
 import re
 import time
 
-#adapted from https://stackoverflow.com/questions/250357/truncate-a-string-without-ending-in-the-middle-of-a-word
+# Truncate a blob of text at a word boundary near the length limit
 def smart_truncate(content, length=100, suffix='…'):
+    #adapted from https://stackoverflow.com/questions/250357/truncate-a-string-without-ending-in-the-middle-of-a-word
     return ' '.join(content[:length+1].split(' ')[0:-1]) + suffix
     
 def line_is_section(l):
@@ -21,7 +24,10 @@ def line_is_url(l):
     return(re.match('^http',l))
     
 def write_section(s,outFile):
-    outFile.write(s + "\n")
+    file = open(outFile,"a",encoding="utf-8") 
+    file.write(s + "\n")
+    file.close()
+
 
 def get_url_aggressively(url,retries):
     tries = 0
@@ -53,13 +59,8 @@ def extract_post_info(l,soup):
     postInfo = {'imageUrl':imageUrl,'title':title,'url':l}
     elog = open("extract.d.log.txt","a",encoding="utf-8")
     bigDesc=""
-    #elog.write("####\n\n")
     elog.write(str(soup))
     elog.write("\n\n--\n\n")
-
-  #  d = soup.find('div',class_ = "MarkdownViewer").findChildren()
-   # for dc in d:
-    #    elog.write(dc.get_text())
 
     # TODO write some code that guesses if the text is a caption for a leading image
     # Probably by checking for hyperlinks right after images, CC*, and wikimedia commons
@@ -70,9 +71,6 @@ def extract_post_info(l,soup):
         if(len(bigDesc)>300):
             bigDesc = smart_truncate(bigDesc,300)
             break
-    #print(bigDesc)
-    #elog.write("<<<>>>>>\n"+bigDesc+"\n\n")
-    #exit()
     postInfo['bigDesc']="\""+bigDesc+"\""
     
     userMatch=re.match('(.*)by\s+(\S+)\Z',rawDesc)
@@ -86,19 +84,29 @@ def extract_post_info(l,soup):
 def write_post_info(l,postTemplate,postNum,outFile):
     soup = get_parsed_post(l)
     postInfo = extract_post_info(l,soup)
-    pT = Template( open(postTemplate).read() )
     if(postNum%2==0):
         postInfo['pullDir']="pull-left"
     else:
         postInfo['pullDir']="pull-right"
-    try:
-        outFile.write(pT.substitute(postInfo))
+    try:        
+        with open(postTemplate) as file_:
+            template = Template(file_.read())
+        ### header and footer [$title]($url) @$userName,$pullDir">($imageUrl)]($url),$bigDesc
+        file = open(outFile,"a",encoding="utf-8") 
+        file.write(template.render(postInfo=postInfo))
+        file.write("\n\n")
+        file.close()
     except:
         print(postInfo)
 
 def write_header(headerFile,outFile):
-    with open(headerFile) as hf:
-        outFile.writelines(hf.readlines())
+    with open(headerFile) as file_:
+        template = Template(file_.read())
+    ### header and footer [$title]($url) @$userName,$pullDir">($imageUrl)]($url),$bigDesc
+    file = open(outFile,"w",encoding="utf-8") 
+    file.write(template.render(postNumber=postsFile))
+    file.write("\n\n")
+    file.close()
 
 def write_posts(postsFile,postTemplate,outFile):
         postNum=0
@@ -113,15 +121,18 @@ def write_posts(postsFile,postTemplate,outFile):
                     postNum=postNum+1
                     
 def write_footer(footerFile,outFile):
-    with open(footerFile) as ff:
-        outFile.writelines(ff.readlines())
+    with open(footerFile) as file_:
+        template = Template(file_.read())
+    file = open(outFile,"a",encoding="utf-8") 
+    file.write(template.render())
+    file.write("\n\n")
+    file.close()
     
 def write_reading_log(headerFile,footerFile,postsFile,postTemplate):
-    with open("article.md","w",encoding="utf-8") as outFile:
-        write_header(headerFile,outFile)
-        write_posts(postsFile,postTemplate,outFile)
-        write_footer(footerFile,outFile)
-        
+    outFile="article.md"
+    write_header(headerFile,outFile)
+    write_posts(postsFile,postTemplate,outFile)
+    write_footer(footerFile,outFile)
 
 #simple and lightweight argparser
 #thanks to https://gist.github.com/dideler/2395703
