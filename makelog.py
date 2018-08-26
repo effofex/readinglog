@@ -1,6 +1,7 @@
 from jinja2 import Template  # Mapping post info into a readinglog
 import os.path               # File manipulation
-
+import json
+import markdown
 #TODO thumbnail size
 #TODO clickable images
 
@@ -28,62 +29,52 @@ def write_section(s,outFile):
     file.write(s + "\n")
     file.close()
 
-
-def get_url_aggressively(url,retries):
-    tries = 0
-    while(tries < retries):
-        response1 = requests.get(url)
-        if(response1.status_code == requests.codes.ok):
-            return(response1)
-        time.sleep(0.1)
-        tries = tries + 1
-        
-def get_parsed_post(url):
-    response1 = get_url_aggressively(url,10)
-    response1.raise_for_status()
-    response1.encoding='utf-8'
-    response=response1.text
-    return(BeautifulSoup(response,"html.parser"))
+def extract_post_info(l):
+    # Instead of reading raw html from steemit, I will migrate to RPC calls
+    # It will be shoehorned in here and slowly take over during development
+    # For my reference (and to give much credit)
+    # https://steem.esteem.ws/ is a great reference and way to test calls
+    # and https://geo.steem.pl/ is a good automatic way to check rpc nodes
     
-def extract_post_info(l,soup):
-    title=soup.find('meta',attrs={'name':'og:title'})['content']
-    trailingSteemit=re.match('(.*) — Steemit',title)
-    if(trailingSteemit):
-        title =  trailingSteemit.group(1)
-    imageUrl=soup.find('meta',attrs={'name':'og:image'})['content']
+    # TODO smart RPC node selection, potentially a pref
+    print(l)
+    urlRegMatch = re.search('\/\@(.*)\/(.*)',l)
+    payload = {}
+    #print(urlRegMatch)
+    #print(urlRegMatch.group(1))
+    #print(urlRegMatch.group(2))
+    if(urlRegMatch):  #TODO exception if not found
+        payload['author'] = urlRegMatch.group(1)
+        payload['permlink'] = urlRegMatch.group(2)
+    print(payload)
+    url = 'https://api.steemjs.com/get_content/'
+    response = requests.get(url, params=payload)
+    post_json = response.json()
+    print(post_json['author'])
+    print(post_json['permlink'])
+    jm = json.loads(post_json['json_metadata'])
+    # print(jm['image'][0])
+    html_body = markdown.markdown(post_json['body'], output_format='html5')
+    # print(html_body)
+    newsoup = BeautifulSoup(html_body,"html.parser")
+    print(newsoup.get_text())
+    title = post_json['title']
+    imageUrl = jm['image'][0]
+    # TODO make htis more robust and intentional with urllib.parse and urlib.quote
     #escape any naughty parens
     imageUrl = re.sub(r'\(','%28',imageUrl)
     imageUrl = re.sub(r'\)','%29',imageUrl)
-    imageUrl="https://steemitimages.com/200x200/"+imageUrl
-    rawDesc=soup.find('meta',attrs={'name':'og:description'})['content']
+    imageUrl="http://steemitimages.com/200x200/"+imageUrl
+    # TODO, allow user to specify busy/steemit/etc as domain for url and use pst_json['url'] for the path
     postInfo = {'imageUrl':imageUrl,'title':title,'url':l}
-    elog = open("extract.d.log.txt","a",encoding="utf-8")
-    bigDesc=""
-    elog.write(str(soup))
-    elog.write("\n\n--\n\n")
-
-    # TODO write some code that guesses if the text is a caption for a leading image
-    # Probably by checking for hyperlinks right after images, CC*, and wikimedia commons
-    for el in soup.find('div',class_ = "MarkdownViewer").findChildren():
-        #elog.write(p.get_text()+"\n\n~~\n\n")
-        if(len(el.get_text())>0 and not re.match('^\s+$',el.get_text())):
-            bigDesc=" ".join(el.get_text().split())+"\n\n"
-        if(len(bigDesc)>300):
-            bigDesc = smart_truncate(bigDesc,300)
-            break
-    postInfo['bigDesc']="\""+bigDesc+"\""
-    
-    userMatch=re.match('(.*)by\s+(\S+)\Z',rawDesc)
-    if(userMatch):
-        desc = userMatch.group(1)
-        userName = userMatch.group(2)
-        postInfo['desc']= desc
-        postInfo['userName']= userName
+    postInfo['bigDesc']="\""+smart_truncate(newsoup.get_text(),length=256)+"\""
+    postInfo['desc']= smart_truncate(newsoup.get_text(),length=100)
+    postInfo['userName']= post_json['author']
+    print(postInfo)
     return(postInfo)
 
 def write_post_info(l,postTemplate,postNum,outFile):
-    soup = get_parsed_post(l)
-    postInfo = extract_post_info(l,soup)
+    postInfo = extract_post_info(l)
     if(postNum%2==0):
         postInfo['pullDir']="pull-left"
     else:
@@ -91,7 +82,6 @@ def write_post_info(l,postTemplate,postNum,outFile):
     try:        
         with open(postTemplate) as file_:
             template = Template(file_.read())
-        ### header and footer [$title]($url) @$userName,$pullDir">($imageUrl)]($url),$bigDesc
         file = open(outFile,"a",encoding="utf-8") 
         file.write(template.render(postInfo=postInfo))
         file.write("\n\n")
