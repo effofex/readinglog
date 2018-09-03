@@ -91,7 +91,8 @@ def write_post_info(l,postTemplate,postNum,outFile):
         file.write(template.render(postInfo=postInfo))
         file.write("\n\n")
         file.close()
-    except:
+    except Exception as e:
+        print(e)
         print(postInfo)
 
 def write_header(headerFile,outFile):
