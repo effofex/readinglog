@@ -72,7 +72,9 @@ def extract_post_info(l):
     imageUrl="http://steemitimages.com/200x200/"+imageUrl
     # TODO, allow user to specify busy/steemit/etc as domain for url and use pst_json['url'] for the path
     postInfo = {'imageUrl':imageUrl,'title':title,'url':l}
-    postInfo['bigDesc']="\""+smart_truncate(newsoup.get_text(),length=256).strip()+"\""
+    article_text = newsoup.get_text()
+    article_text = re.sub('\(?https?://.*[jpg|gif|png|jpeg|tiff|tif]\)?','',article_text)
+    postInfo['bigDesc']="\""+smart_truncate(article_text,length=256).strip()+"\""
     postInfo['desc']= smart_truncate(newsoup.get_text(),length=100)
     postInfo['userName']= post_json['author']
     #print(postInfo)
