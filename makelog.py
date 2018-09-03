@@ -37,7 +37,7 @@ def extract_post_info(l):
     # and https://geo.steem.pl/ is a good automatic way to check rpc nodes
     
     # TODO smart RPC node selection, potentially a pref
-    print(l)
+    #print(l)
     urlRegMatch = re.search('\/\@(.*)\/(.*)',l)
     payload = {}
     #print(urlRegMatch)
@@ -46,20 +46,25 @@ def extract_post_info(l):
     if(urlRegMatch):  #TODO exception if not found
         payload['author'] = urlRegMatch.group(1)
         payload['permlink'] = urlRegMatch.group(2)
-    print(payload)
+    #print(payload)
     url = 'https://api.steemjs.com/get_content/'
     response = requests.get(url, params=payload)
     post_json = response.json()
-    print(post_json['author'])
-    print(post_json['permlink'])
+    #print(post_json['author'])
+    #print(post_json['permlink'])
     jm = json.loads(post_json['json_metadata'])
     # print(jm['image'][0])
     html_body = markdown.markdown(post_json['body'], output_format='html5')
     # print(html_body)
     newsoup = BeautifulSoup(html_body,"html.parser")
-    print(newsoup.get_text())
+    #print(newsoup.get_text())
     title = post_json['title']
-    imageUrl = jm['image'][0]
+    try:
+        imageUrl = jm['image'][0]
+    except:
+        print("Could not find image in json metadata")
+        # TODO for now, just use a blank image, real fix is to try and get it from post
+        imageUrl = ''
     # TODO make htis more robust and intentional with urllib.parse and urlib.quote
     #escape any naughty parens
     imageUrl = re.sub(r'\(','%28',imageUrl)
@@ -70,7 +75,7 @@ def extract_post_info(l):
     postInfo['bigDesc']="\""+smart_truncate(newsoup.get_text(),length=256)+"\""
     postInfo['desc']= smart_truncate(newsoup.get_text(),length=100)
     postInfo['userName']= post_json['author']
-    print(postInfo)
+    #print(postInfo)
     return(postInfo)
 
 def write_post_info(l,postTemplate,postNum,outFile):
